@@ -5,7 +5,6 @@ $ git clone git://github.com/oleavr/frida-agent-example.git
 $ cd frida-agent-example/
 $ npm install
 $ frida -l _agent.js --no-pause ./example_application
-$ frida -U -f com.example.android --no-pause -l _agent.js
 ```
 
 ### Development workflow
