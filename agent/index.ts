@@ -14,6 +14,7 @@ function sem_dtor(name: string, args: NativePointer[]) {
         sym_name: name,
         timestamp: timestamp()
     })
+    return args[0]
 }
 function sem_ctor(name: string, args: NativePointer[]) {
     const ret: any = {
@@ -31,6 +32,7 @@ function sem_ctor(name: string, args: NativePointer[]) {
         ret["event"] = "sem_move_unknown"
     }
     file_log_json(ret)
+    return args[0]
 }
 
 function sem_wait(name: string, args: NativePointer[]) {
@@ -48,6 +50,7 @@ function sem_wait(name: string, args: NativePointer[]) {
         timestamp: timestamp(),
         waiters: waiters_fun(args[1])
     })
+    return args[1]
 }
 
 function sem_signal(name: string, args: NativePointer[]) {
@@ -59,6 +62,7 @@ function sem_signal(name: string, args: NativePointer[]) {
         timestamp: timestamp(),
         waiters: waiters_fun(args[0])
     })
+    return args[0]
 }
 
 
@@ -76,15 +80,15 @@ semaphore_symbols.map(fun => {
         return
     }
 
-    let handler: (name: string, args: NativePointer[]) => void
+    let enter_handler: (name: string, args: NativePointer[]) => void
     if (name.match(/.*::basic_semaphore\(.*\)/)) {
-        handler = sem_ctor
+        enter_handler = sem_ctor
     } else if (name.match(/.*::~basic_semaphore\(\)/)) {
-        handler = sem_dtor
-    } else if (name.match(/.*::(try_)?wait\(.*\)/)) {
-        handler = sem_wait
+        enter_handler = sem_dtor
+    } else if (name.match(/.*::(try_)?wait\(.*,.*\)/)) {
+        enter_handler = sem_wait
     } else if (name.match(/.*::signal\(unsigned long\)/)) {
-        handler = sem_signal
+        enter_handler = sem_signal
     } else {
         //log(name)
         return
@@ -92,7 +96,15 @@ semaphore_symbols.map(fun => {
 
     Interceptor.attach(fun, {
         onEnter(args) {
-            handler(name, args)
+            this.semaphore = enter_handler(name, args)
+        },
+        onLeave(retval) {
+            file_log_json({
+                event: "finished",
+                address: this.semaphore,
+                timestamp: timestamp(),
+                waiters: waiters_fun(this.semaphore)
+            })
         }
     })
 })
