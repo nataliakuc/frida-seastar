@@ -5,7 +5,7 @@ function sem_dtor(name: string, args: NativePointer[]) {
     file_log_json({
         event: "sem_dtor", 
         address: args[0],
-        sym_name: name
+        sym_name: name,
     })
 }
 function sem_ctor(name: string, args: NativePointer[]) {
@@ -14,13 +14,20 @@ function sem_ctor(name: string, args: NativePointer[]) {
             event: "sem_ctor", 
             address: args[0],
             sym_name: name, 
-            units: args[1]
+            units: args[1],
+        })
+    } else if (name.match(/.*&&\)/)) {
+        file_log_json({
+            event: "sem_move_ctor", 
+            address: args[0],
+            sym_name: name,
+            move_from: args[1]
         })
     } else {
         file_log_json({
-            event: "sem_ctor", 
+            event: "sem_move_unknown", 
             address: args[0],
-            sym_name: name
+            sym_name: name,
         })
     }
 }
@@ -34,7 +41,7 @@ function sem_wait(name: string, args: NativePointer[]) {
     }
     file_log_json({
         event: "sem_wait",
-        address: args[0],
+        address: args[1],
         sym_name: name,
         units: units
     })
