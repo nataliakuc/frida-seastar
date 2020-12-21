@@ -1,7 +1,7 @@
 ### How to compile & load
 
 ```sh
-$ git clone git://github.com/oleavr/frida-agent-example.git
+$ git clone git://github.com/enedil/frida-seastar.git
 $ cd frida-seastar/
 $ npm install
 $ frida -l _agent.js --no-pause ./example_application
