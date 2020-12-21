@@ -5,6 +5,8 @@ function timestamp() {
     return Date.now()
 }
 
+let waiters_fun: NativeFunction;
+
 function sem_dtor(name: string, args: NativePointer[]) {
     file_log_json({
         event: "sem_dtor", 
@@ -14,30 +16,21 @@ function sem_dtor(name: string, args: NativePointer[]) {
     })
 }
 function sem_ctor(name: string, args: NativePointer[]) {
-    if (name.match(/.*\(unsigned long.*\)/)) {
-        file_log_json({
-            event: "sem_ctor", 
-            address: args[0],
-            sym_name: name, 
-            units: args[1],
-            timestamp: timestamp()
-        })
-    } else if (name.match(/.*&&\)/)) {
-        file_log_json({
-            event: "sem_move_ctor", 
-            address: args[0],
-            sym_name: name,
-            move_from: args[1],
-            timestamp: timestamp()
-        })
-    } else {
-        file_log_json({
-            event: "sem_move_unknown", 
-            address: args[0],
-            sym_name: name,
-            timestamp: timestamp()
-        })
+    const ret: any = {
+        address: args[0],
+        sym_name: name,
+        timestamp: timestamp(),
     }
+    if (name.match(/.*\(unsigned long.*\)/)) {
+        ret["event"] = "sem_ctor"
+        ret["units"] = args[1]
+    } else if (name.match(/.*&&\)/)) {
+        ret["event"] = "sem_move_ctor"
+        ret["move_from"] = args[1]
+    } else {
+        ret["event"] = "sem_move_unknown"
+    }
+    file_log_json(ret)
 }
 
 function sem_wait(name: string, args: NativePointer[]) {
@@ -52,7 +45,8 @@ function sem_wait(name: string, args: NativePointer[]) {
         address: args[1],
         sym_name: name,
         units: units,
-        timestamp: timestamp()
+        timestamp: timestamp(),
+        waiters: waiters_fun(args[1])
     })
 }
 
@@ -62,11 +56,14 @@ function sem_signal(name: string, args: NativePointer[]) {
         address: args[0],
         sym_name: name,
         units: args[1],
-        timestamp: timestamp()
+        timestamp: timestamp(),
+        waiters: waiters_fun(args[0])
     })
 }
 
-const semaphore_symbols = DebugSymbol.findFunctionsMatching('_ZN7seastar15basic_semaphore*')
+
+const semaphore_symbols = 
+    DebugSymbol.findFunctionsMatching('_ZN7seastar15basic_semaphore*').concat(DebugSymbol.findFunctionsMatching('_ZNK7seastar15basic_semaphore*'))
 semaphore_symbols.map(fun => {
     const sym = DebugSymbol.fromAddress(fun)
     if (sym.name == null) {
@@ -74,20 +71,24 @@ semaphore_symbols.map(fun => {
     }
 
     const name: string = demangle(sym.name)
+    if (name.match(/.*::waiters\(\).*/)) {
+        waiters_fun = new NativeFunction(fun, 'pointer', ['pointer'])
+        return
+    }
+
     let handler: (name: string, args: NativePointer[]) => void
     if (name.match(/.*::basic_semaphore\(.*\)/)) {
         handler = sem_ctor
-    }
-    else if (name.match(/.*::~basic_semaphore\(\)/)) {
+    } else if (name.match(/.*::~basic_semaphore\(\)/)) {
         handler = sem_dtor
     } else if (name.match(/.*::(try_)?wait\(.*\)/)) {
         handler = sem_wait
     } else if (name.match(/.*::signal\(unsigned long\)/)) {
         handler = sem_signal
     } else {
+        //log(name)
         return
     }
-    log(name)
 
     Interceptor.attach(fun, {
         onEnter(args) {
