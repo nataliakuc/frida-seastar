@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+gcc -c -Wall -Wextra -fpic customcppfilt.c && gcc -shared -o libcppfilt.so customcppfilt.o
