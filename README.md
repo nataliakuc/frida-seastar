@@ -2,7 +2,7 @@
 
 ```sh
 $ git clone git://github.com/oleavr/frida-agent-example.git
-$ cd frida-agent-example/
+$ cd frida-seastar/
 $ npm install
 $ frida -l _agent.js --no-pause ./example_application
 ```
