@@ -1,11 +1,16 @@
 import { log, log_tid, thread_id, file_log_json } from "./logger"
 import { demangle } from "./demangler"
 
+function timestamp() {
+    return Date.now()
+}
+
 function sem_dtor(name: string, args: NativePointer[]) {
     file_log_json({
         event: "sem_dtor", 
         address: args[0],
         sym_name: name,
+        timestamp: timestamp()
     })
 }
 function sem_ctor(name: string, args: NativePointer[]) {
@@ -15,19 +20,22 @@ function sem_ctor(name: string, args: NativePointer[]) {
             address: args[0],
             sym_name: name, 
             units: args[1],
+            timestamp: timestamp()
         })
     } else if (name.match(/.*&&\)/)) {
         file_log_json({
             event: "sem_move_ctor", 
             address: args[0],
             sym_name: name,
-            move_from: args[1]
+            move_from: args[1],
+            timestamp: timestamp()
         })
     } else {
         file_log_json({
             event: "sem_move_unknown", 
             address: args[0],
             sym_name: name,
+            timestamp: timestamp()
         })
     }
 }
@@ -43,7 +51,8 @@ function sem_wait(name: string, args: NativePointer[]) {
         event: "sem_wait",
         address: args[1],
         sym_name: name,
-        units: units
+        units: units,
+        timestamp: timestamp()
     })
 }
 
@@ -52,7 +61,8 @@ function sem_signal(name: string, args: NativePointer[]) {
         event: "sem_signal",
         address: args[0],
         sym_name: name,
-        units: args[1]
+        units: args[1],
+        timestamp: timestamp()
     })
 }
 
