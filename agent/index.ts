@@ -65,6 +65,7 @@ function sem_signal(name: string, args: NativePointer[]) {
     return args[0]
 }
 
+const syscall_work_queue_addresses: any = {};
 
 const semaphore_symbols = 
     DebugSymbol.findFunctionsMatching('_ZN7seastar15basic_semaphore*').concat(DebugSymbol.findFunctionsMatching('_ZNK7seastar15basic_semaphore*'))
@@ -96,9 +97,23 @@ semaphore_symbols.map(fun => {
 
     Interceptor.attach(fun, {
         onEnter(args) {
+            const bt = Thread.backtrace(this.context, Backtracer.ACCURATE)
+            if (bt[0].toString() in syscall_work_queue_addresses) {
+                return
+            }
+            const caller = DebugSymbol.fromAddress(bt[0])
+            if (caller != null && caller.name != null && caller.name.match(/syscall_work_queue/)) {
+                syscall_work_queue_addresses[bt[0].toString()] = true
+                return
+            }
             this.semaphore = enter_handler(name, args)
         },
         onLeave(retval) {
+            const bt = Thread.backtrace(this.context, Backtracer.ACCURATE)
+            if (bt[0].toString() in syscall_work_queue_addresses) {
+                return
+            }
+
             file_log_json({
                 event: "finished",
                 address: this.semaphore,
