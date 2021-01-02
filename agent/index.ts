@@ -5,7 +5,7 @@ function timestamp() {
     return Date.now()
 }
 
-let waiters_fun: NativeFunction;
+let waiters_fun : NativeFunction;
 
 function sem_dtor(name: string, args: NativePointer[]) {
     file_log_json({
@@ -65,10 +65,27 @@ function sem_signal(name: string, args: NativePointer[]) {
     return args[0]
 }
 
+function units_move(name: string, args: NativePointer[]) {
+    console.log(name)
+    console.log(args)
+    file_log_json({
+    	event: "units_move",
+        address: args[0],
+        sem_addr: args[1],
+        sym_name: name,
+        units: args[2],
+        timestamp: timestamp()
+    });
+    return args[0]
+}
+
 const syscall_work_queue_addresses: any = {};
 
-const semaphore_symbols = 
-    DebugSymbol.findFunctionsMatching('_ZN7seastar15basic_semaphore*').concat(DebugSymbol.findFunctionsMatching('_ZNK7seastar15basic_semaphore*'))
+const semaphore_symbols = DebugSymbol.findFunctionsMatching('_ZN7seastar15basic_semaphore*')
+.concat(DebugSymbol.findFunctionsMatching('_ZNK7seastar15basic_semaphore*'))
+.concat(DebugSymbol.findFunctionsMatching('_ZNK7seastar15semaphore_units*'))
+.concat(DebugSymbol.findFunctionsMatching('_ZN7seastar15semaphore_units*'))
+
 semaphore_symbols.map(fun => {
     const sym = DebugSymbol.fromAddress(fun)
     if (sym.name == null) {
@@ -89,6 +106,8 @@ semaphore_symbols.map(fun => {
     } else if (name.match(/.*::(try_)?wait\(.*,.*\)/)) {
         enter_handler = sem_wait
     } else if (name.match(/.*::signal\(unsigned long\)/)) {
+        enter_handler = sem_signal
+    } else if (name.match(/.*::semaphore_units(.*&&)/)) {
         enter_handler = sem_signal
     } else {
         //log(name)
